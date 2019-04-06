@@ -29,8 +29,8 @@ class Meta(threading.Thread):
         super(Meta, self).__init__()
         self.db = None
         self.conn = None
-        self.ipAddr = '127.0.0.1'
-        self.host = None
+        self.ipAddr = '127.0.0.1'   # local ip address
+        self.host = None            # remote ip address
         self.kvm_version = None
         self.OS = None
         self.RAM = None
@@ -45,11 +45,16 @@ class Meta(threading.Thread):
     def __config(self):
         etc_file = open("/etc/platform.conf", "r")
         conf = json.load(etc_file)
+        global DATABASE_HOST
+        global ENV
+        global TEMPLATE_PATH
+        global STORAGE_PATH
         DATABASE_HOST = conf.get("mongodb")
         ENV = conf.get("platform_root")
         TEMPLATE_PATH = conf.get("template")
         STORAGE_PATH = conf.get("storage")
         host = socket.gethostname()
+        self.ipAddr = socket.gethostbyname(host)
         pass
 
     @staticmethod
@@ -61,12 +66,20 @@ class Meta(threading.Thread):
                                           "status libvirtd'")
             exit(1)
 
-    def __connect(self, host, port, callback):
+    def __connect(self, host, port):
         url = "http://%s:%d" % (host, port)
         data = {
-
+            "method": "register",
+            "meta_address": self.ipAddr,
+            "meta_port": 23333
         }
-        pass
+        re = requests.post(url, json=data)
+        re = re.json()
+        stats = re.get("stats")
+        if stats == 200:
+            return 1
+        else:
+            return 0
 
     def __resolve(self, environ, start_response):
         start_response('200 OK', [('Content-Type', 'application/json')])
@@ -82,21 +95,21 @@ class Meta(threading.Thread):
 
     def controller(self):
         message = json.load(self.queue.get())
-        action = message.get('act')
+        method = message.get('method')
         request = message.get('request')
-        if action == 'CVM':  # create virtual machine
+        if method == 'CVM':  # create virtual machine
             self.__createVM(request)
             pass
-        if action == 'CVN':  # create virtual net
+        if method == 'CVN':  # create virtual net
             self.__createVnet(request)
             pass
-        if action == 'DVM':  # destroy virtual machine
+        if method == 'DVM':  # destroy virtual machine
             self.__destroyVnet(request)
             pass
-        if action == 'AVM':  # alter virtual machine
+        if method == 'AVM':  # alter virtual machine
             self.__alterVM(request)
             pass
-        if action == 'GVM':  # get virtual machine info
+        if method == 'GVM':  # get virtual machine info
             self.__getVM(request)
 
             pass
@@ -254,7 +267,9 @@ class Meta(threading.Thread):
         self.__check_env()
         self.__get_system_info()
         remote_host, remote_port = self.__discoverHost()
-        self.__connect(remote_host, remote_port, self.__resolve)
+        for i in range(5):
+            if self.__connect(remote_host, remote_port):
+                break
         httpd = make_server("0.0.0.0", 23334, self.__resolve)
         httpd.serve_forever()
 
