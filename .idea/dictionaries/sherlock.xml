@@ -1,0 +1,23 @@
+<component name="ProjectDictionaryState">
+  <dictionary name="sherlock">
+    <words>
+      <w>cloudplatform</w>
+      <w>htoi</w>
+      <w>itoh</w>
+      <w>jdata</w>
+      <w>jinja</w>
+      <w>libvirtd</w>
+      <w>localds</w>
+      <w>nameserver</w>
+      <w>onboot</w>
+      <w>passwd</w>
+      <w>qcow</w>
+      <w>qemu</w>
+      <w>systemctl</w>
+      <w>vcpu</w>
+      <w>virbr</w>
+      <w>virtio</w>
+      <w>vnet</w>
+    </words>
+  </dictionary>
+</component>

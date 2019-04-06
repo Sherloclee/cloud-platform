@@ -1,0 +1,30 @@
+<domain type='kvm'>
+    <name>{{ instance_id }}</name>
+    <memory unit='KiB'>{{ memory }}</memory>
+    <os>
+        <type>hvm</type>
+        <boot dev="hd" />
+    </os>
+    <features>
+        <acpi/>
+    </features>
+    <vcpu>{{ vcpu }}</vcpu>
+    <devices>
+        <interface type='bridge'>
+            <source bridge='{{ network }}'/>
+            <model type='virtio'/>
+        </interface>
+        <disk type='file' device='disk'>
+            <driver type='qcow2' cache='none'/>
+	    <source file='{{ img }}'/>
+            <target dev='vda' bus='virtio'/>
+        </disk>
+        <disk type='file' device='disk'>
+	    <source file='/home/sherlock/kvm/images/cloud-init.img'/>
+            <target dev='vdb' bus='virtio'/>
+        </disk>
+        <console type="pty">
+           <target type="serial" port="1"/>
+        </console>
+    </devices>
+</domain>

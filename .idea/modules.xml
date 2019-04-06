@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/.idea/cloud-platform.iml" filepath="$PROJECT_DIR$/.idea/cloud-platform.iml" />
+      <module fileurl="file://$USER_HOME$/kvm/.idea/kvm.iml" filepath="$USER_HOME$/kvm/.idea/kvm.iml" />
+    </modules>
+  </component>
+</project>
