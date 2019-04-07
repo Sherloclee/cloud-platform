@@ -218,9 +218,9 @@ class Host(threading.Thread):
         try:
             new_meta = Meta(request)
             self.meta_list.append(new_meta)
-            return {"register": "success"}
+            return {"stats": 200}
         except Exception:
-            return {"register": "failed"}
+            return {"stats": 500}
 
     def command(self, result):
         print result

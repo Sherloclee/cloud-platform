@@ -26,22 +26,24 @@ class Meta(threading.Thread):
     def __init__(self):
         # ipAddr of Host
         super(Meta, self).__init__()
+        self.flag = True
         self.db = None
         self.conn = None
-        self.host = '127.0.0.1'             # local ip address
-        self.port = None                    # local port
-        self.remote_host = None             # remote ip addr
-        self.remote_port = None             # remote port
-        self.kvm_version = None             # libvirt version
-        self.OS = None                      # os
-        self.memory = None                  # max ram size
-        self.storage = None                 # max storage size
-        self.api = None                     # api url
-        self.queue = Queue.Queue()          # message queue
+        self.host = '127.0.0.1'  # local ip address
+        self.port = None  # local port
+        self.remote_host = None  # remote ip addr
+        self.remote_port = None  # remote port
+        self.kvm_version = None  # libvirt version
+        self.OS = None  # os
+        self.memory = None  # max ram size
+        self.storage = 256  # max storage size
+        self.api = None  # api url
+        self.queue = Queue.Queue()  # message queue
+        self.ctrl = self.ctrl = threading.Thread(target=self.controller)  # controller thread
         self.httpd = make_server("0.0.0.0", 23334, self.__resolve)
         mongo_host = "mongodb://" + DATABASE_HOST
         mongo = pymongo.MongoClient(mongo_host)
-        self.db = mongo['cloud_platform']   # mongodb
+        self.db = mongo['cloud_platform']  # mongodb
 
     def __connect(self, host, port):
         url = "http://%s:%d" % (host, port)
@@ -64,44 +66,59 @@ class Meta(threading.Thread):
         start_response('200 OK', [('Content-Type', 'application/json')])
         request_body = environ["wsgi.input"].read(int(environ.get("CONTENT_LENGTH", 0)))
         request_body = json.loads(request_body)
-
-        self.queue.put(request_body)
-        response = {
-            "result": "processing"
-        }
+        if request_body.get("method") == "getInfo":
+            response = self.__getInfo()
+        else:
+            self.queue.put(request_body)
+            response = {
+                "result": "processing"
+            }
+            self.ctrl.start()
         return [json.dumps(response)]
 
     def __get_system_info(self):
         session = libvirt.open("qemu:///system")
         self.mongo_host = "mongodb://127.0.0.1:27017"
         mongo = pymongo.MongoClient(self.mongo_host)
-        self.db = mongo['cloud_platform']                       # mongodb conn
-        self.hostname = socket.gethostname()                    # local host name
-        self.host = socket.gethostbyname(self.hostname)       # local ip address
-        self.kvm_version = session.getVersion()                 # libvirt version
-        self.memory = session.getInfo()[1]                         # max memory size
-        self.maxVcpu = session.getInfo()[3]                     # max Cpu core
-        self.HDD = 256                                          # storage size
-        self.port = 23333                                       # local api port
-        self.OS = platform.system()                             # OS
-        self.api = "http://%s:%d" % (self.host, self.port)    # local api port
+        self.db = mongo['cloud_platform']  # mongodb conn
+        self.hostname = socket.gethostname()  # local host name
+        self.host = socket.gethostbyname(self.hostname)  # local ip address
+        self.kvm_version = session.getVersion()  # libvirt version
+        self.memory = session.getInfo()[1]  # max memory size
+        self.maxVcpu = session.getInfo()[3]  # max Cpu core
+        self.HDD = 256  # storage size
+        self.port = 23333  # local api port
+        self.OS = platform.system()  # OS
+        self.api = "http://%s:%d" % (self.host, self.port)  # local api port
         pass
 
-    def run(self):
-        self.__get_system_info()                                    # set server information
-        remote_host, remote_port = self.__discoverHost()            # discover host server
+    def __getInfo(self):
+        data = {
+            "storage": self.storage,
+            "memory": self.memory,
+            "vcpu": self.maxVcpu
+        }
+        return data
 
-        temp = threading.Thread(target=self.httpd.serve_forever)    # create api service
+    def run(self):
+        self.__get_system_info()  # set server information
+        remote_host, remote_port = self.__discoverHost()  # discover host server
+
+        temp = threading.Thread(target=self.httpd.serve_forever)  # create api service
         temp.start()
 
-        ctrl = threading.Thread(target=self.controller)             # create controller thread
-        ctrl.start()
+        # create controller thread
 
         for i in range(5):
-            if self.__regist(remote_host, remote_port):            # regist meta to host
+            sleep(2)
+            if self.__regist(remote_host, remote_port):  # regist meta to host
                 break
         print "Meta server start..."
-        print "Meta api %s:%d"
+        print "Meta api %s:%d" % (self.host, self.port)
+
+    def stop(self):
+        self.flag = False
+        self.httpd.shutdown()
 
     def testVnet(self, flag, user_name, gateway):
         if flag:
@@ -119,44 +136,44 @@ class Meta(threading.Thread):
             self.__destroyVnet(test_request)
 
     def controller(self):
-        message = json.load(self.queue.get())
-        method = message.get('method')
-        request = message.get('request')
-        if method == 'CVM':  # create virtual machine
-            self.__createVM(request)
-            pass
-        if method == 'CVN':  # create virtual net
-            self.__createVnet(request)
-            pass
-        if method == 'DVM':  # destroy virtual machine
-            self.__destroyVnet(request)
-            pass
-        if method == 'AVM':  # alter virtual machine
-            self.__alterVM(request)
-            pass
-        if method == 'GVM':  # get virtual machine info
-            self.__getVM(request)
-        if method == 'getHost':
-
-            pass
+        while not self.queue.empty():
+            message = self.queue.get()
+            method = message.get('method')
+            request = message.get('request')
+            if method == 'CVM':  # create virtual machine
+                self.__createVM(request)
+                pass
+            if method == 'CVN':  # create virtual net
+                self.__createVnet(request)
+                pass
+            if method == 'DVM':  # destroy virtual machine
+                self.__destroyVnet(request)
+                pass
+            if method == 'AVM':  # alter virtual machine
+                self.__alterVM(request)
+                pass
+            if method == 'GVM':  # get virtual machine info
+                self.__getVM(request)
+            if method == 'getHost':
+                pass
 
         pass
 
     def __discoverHost(self):
         self.conn = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.conn.setblocking(False)
-        self.conn.bind(('', 23333))
+        self.conn.bind(('', 23334))
         for i in range(6):
             try:
                 sleep(5)
                 data, sock = self.conn.recvfrom(65535)
                 port, ip_addr = struct.unpack(">2I", data)
                 ip_addr = utils.itoh(ip_addr)
+                print "find host at %s:%d" % (ip_addr, port)
                 return ip_addr, port
             except IOError:
                 print("Discover host: Cannot find available host. Retrying...")
         print("Discover host: Cannot find any host.")
-        pass
 
     def __createVM(self, request):
         user_name = request.get("user_name")
@@ -367,16 +384,25 @@ class Meta(threading.Thread):
     def __regist(self, remote_host, remote_port):
         url = "http://%s:%d" % (remote_host, remote_port)
         data = {
-            "method": "regist",
-            "ip_address": self.host,
-            "url": self.api,
-            "maxVcpu": self.maxVcpu,
-            "memory": self.memory,
-            "storage": self.storage,
+            "header": "instance",
+            "request": {
+                "method": "regist",
+                "request": {
+                    "method": "regist",
+                    "ip_address": self.host,
+                    "url": self.api,
+                    "maxVcpu": self.maxVcpu,
+                    "memory": self.memory,
+                    "storage": self.storage,
+                }
+            }
         }
         re = requests.post(url, json=data)
         re = re.json()
-        stats = re.get("stats")
+        result = re.get("result")
+        result = result.get("result")
+        stats = result.get("stats")
+        print re
         if stats == 200:
             return 1
         else:
