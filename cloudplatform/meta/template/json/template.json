@@ -1,11 +1,10 @@
 {
-    "user_id": "sherlock",
+    "user_id": "user id",
     "instance_id": "test-cloud",
-    "os": "Linux",
+    "os": "CentOS",
     "vcpu": 1,
     "memory": 2097152,
     "disk_size": 20,
-    "img": "/home/sherlock/kvm/images/centos-cloud.qcow2",
     "network": "virbr0",
     "public_ip": "192.168.31.4",
     "private_ip": "192.168.122.198"

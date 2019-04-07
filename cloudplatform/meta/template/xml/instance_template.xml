@@ -1,6 +1,6 @@
 <domain type='kvm'>
-    <name>cloud-test</name>
-    <memory unit='KiB'>2097152</memory>
+    <name>{{ instance_id }}</name>
+    <memory unit='GiB'>{{ memory }}</memory>
     <os>
         <type>hvm</type>
         <boot dev="hd" />
@@ -8,19 +8,20 @@
     <features>
         <acpi/>
     </features>
-    <vcpu>1</vcpu>
+    <vcpu>{{ vcpu }}</vcpu>
     <devices>
         <interface type='bridge'>
-            <source bridge='virbr0'/>
+            <start mode="onboot"/>
+            <source bridge='{{ network }}-br'/>
             <model type='virtio'/>
         </interface>
         <disk type='file' device='disk'>
             <driver type='qcow2' cache='none'/>
-	    <source file='/home/sherlock/kvm/images/centos-cloud.qcow2'/>
+	    <source file='{{ img }}'/>
             <target dev='vda' bus='virtio'/>
         </disk>
         <disk type='file' device='disk'>
-	    <source file='/home/sherlock/kvm/images/cloud-init.img'/>
+	    <source file='{{ cloud_init }}'/>
             <target dev='vdb' bus='virtio'/>
         </disk>
         <console type="pty">

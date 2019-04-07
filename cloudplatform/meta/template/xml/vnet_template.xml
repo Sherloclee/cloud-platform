@@ -1,0 +1,13 @@
+<network>
+  <name>{{ name }}</name>
+  <forward mode='nat'>
+    <nat>
+      <port start='1024' end='65535'/>
+    </nat>
+  </forward>
+  <bridge name='{{ name }}-br' stp='on' delay='0'/>
+  <!--<mac address='{{ mac }}'/>-->
+  <ip address='{{ gateway }}' netmask='{{ netmask }}'>
+  </ip>
+</network>
+<!--52:54:00:ab:d5:71-->

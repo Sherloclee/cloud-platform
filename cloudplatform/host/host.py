@@ -14,11 +14,15 @@ from cloudplatform.host.meta import Meta
 
 
 class Host(threading.Thread):
-    def __init__(self, broad_port, port):
+    host = None  # type: str
+    port = None  # type: int
+
+    def __init__(self, broad_port, port, debug=False):
         super(Host, self).__init__()
+        self.debug = debug
         self.domain = ""
         self.db = pymongo.MongoClient("mongodb://127.0.0.1:27017")["cloud_platform"]
-        self.host = '127.0.0.1'
+        self.host = '127.0.0.1'  # local ip address
         self.broadcast = None
         self.broad_port = broad_port  # default 23335
         self.port = port
@@ -27,18 +31,27 @@ class Host(threading.Thread):
         self.lock = threading.Lock()
         self.httpd_thread = None
         self.httpd = make_server(self.host, self.port, self.controller)
-        os.dup2(open("/dev/null", "r").fileno(), self.httpd.fileno())
         self.flag = True
 
     def run(self):
         self.get_host()
-        self.create_host_broadCast()
+        if self.debug:
+            print "get host result:"
+            print "hostname=%s" % self.host
+        self.create_host_broadCast(self.broad_port)
+        if self.debug:
+            print "create_host_broadCast at %d" % self.broad_port
 
-        self.httpd_thread = threading.Thread(target=self.httpd.serve_forever(), name="httpd")
+        self.httpd_thread = threading.Thread(target=self.httpd.serve_forever, name="httpd")
         self.httpd_thread.start()
+        if self.debug:
+            print "httpd start at %s:%d" % (self.host, self.port)
 
         loop = threading.Thread(target=self.__loop, name="loop")
         loop.start()
+        if self.debug:
+            print "server started..."
+            print "api:%s:%d" % (self.host, self.port)
 
     def stop(self):
         self.flag = False
@@ -67,11 +80,17 @@ class Host(threading.Thread):
         header = request_body.get('header')
         request = request_body.get('request')
 
-        response = None
+        result = None
         if header == "instance":
-            response = self.instanceController(request)
+            result = self.instanceController(request)
         if header == "web":
-            response = self.webController(request)
+            result = self.webController(request)
+
+        response = {
+            "request": request_body,
+            "result": result
+        }
+
         return response
 
     def listener(self):
@@ -81,10 +100,10 @@ class Host(threading.Thread):
         self.domain = socket.gethostname()
         self.host = socket.gethostbyname(self.domain)
 
-    def create_host_broadCast(self):
+    def create_host_broadCast(self, broad_port):
         ip = utils.htoi(self.host)
         package = struct.pack(">2I", self.port, ip)
-        self.broadcast = BroadCast(self.broad_port, package)
+        self.broadcast = BroadCast(broad_port, package)
         self.broadcast.start()
 
     def destroy_host_broadCast(self):
@@ -93,17 +112,27 @@ class Host(threading.Thread):
     def webController(self, request):
         request_type = request.get("type")
         sub_request = request.get("request")
+        result = None
         if request_type == "account":  # account setting
-            return self.account(sub_request)
+            result = self.account(sub_request)
 
         if request_type == "instance":  # instance action
-            return self.instance(sub_request)
+            result = self.instance(sub_request)
 
+        response = {
+            "controller": "success",
+            "result": result
+        }
+
+        return response
+
+    # webController
     def account(self, request):
         method = request.get("method")
         user_name = request.get("user_name")
         passwd = request.get("passwd")
         col = self.db["users"]
+        response = None
         if method == "create":
             node = None
             for node in self.meta_list:
@@ -117,39 +146,74 @@ class Host(threading.Thread):
                 "node": node_name
             }
             col.insert(data)
-            pass
+
+            response = {
+                "account": "success",
+                "create": "success"
+            }
+
         if method == "alter":
             myQuery = {"user_name": user_name}
             new_value = {"$set": {"user_name": user_name}}
             col.update(myQuery, new_value)
-            pass
-        pass
+            response = {
+                "account": "success",
+                "alter": "success"
+            }
 
+        return response
+
+    # webController
     def instance(self, request):
         user_name = request.get("user_name")
         col = self.db["users"]
         user = col.find_one({"user_name": user_name})
         node_name = user.get("node_name")  # find node_name by user_name
+
         node = None
         for node in self.meta_list:
             if node.hostname == node_name:  # find node
                 break
-        return node.request(request)  # forward the request to node
+        result = node.request(request)  # forward the request to node
 
-    pass
+        response = {
+            "instance": "success",
+            "result": result
+        }
+
+        return response
 
     def instanceController(self, request):
         method = request.get("method")
         sub_request = request.get("request")
-        if method == "regist":
-            return self.register(sub_request)
 
+        result = None
+        if method == "regist":
+            result = self.register(sub_request)
+        if method == "heart":
+            result = self.heart(sub_request)
+
+        response = {
+            "controller": "success",
+            "result": result
+        }
+        return response
+
+    def heart(self, request):
+        node_name = request.get("node_name")
+        for item in self.meta_list:
+            if item.hostname == node_name:
+                item.isAlive = True
+        return {"heart": "success"}
+
+    # noinspection PyBroadException
     def register(self, request):
-        url = request.get("url")
-        new_meta = Meta()
-        new_meta.url = url
-        self.meta_list.append(new_meta)
-        return {"stats": 11}
+        try:
+            new_meta = Meta(request)
+            self.meta_list.append(new_meta)
+            return {"register": "success"}
+        except Exception:
+            return {"register": "failed"}
 
 
 def local_test():
@@ -173,7 +237,7 @@ def local_test():
 
 
 def remote_test():
-    host = Host(23333, 23334)
+    host = Host(23334, 23335)
     host.get_host()
     host.create_host_broadCast()
     raw_input()

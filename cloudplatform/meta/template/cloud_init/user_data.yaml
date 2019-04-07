@@ -1,0 +1,6 @@
+#!/bin/bash
+passwd root << EOD
+{{ passwd }}
+{{ passwd }}
+EOD
+touch /root/test.data

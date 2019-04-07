@@ -11,7 +11,12 @@
     <vcpu>{{ vcpu }}</vcpu>
     <devices>
         <interface type='bridge'>
-            <source bridge='{{ network }}'/>
+            <start mode="onboot"/>
+            <source bridge='{{ network }}-br'/>
+            <protocol family='ipv4'>
+                <ip address="{{ private_ip}}" prefix="24"/>
+                <route gateway="{{ gateway }}"/>
+            </protocol>
             <model type='virtio'/>
         </interface>
         <disk type='file' device='disk'>
@@ -20,7 +25,7 @@
             <target dev='vda' bus='virtio'/>
         </disk>
         <disk type='file' device='disk'>
-	    <source file='/home/sherlock/kvm/images/cloud-init.img'/>
+	    <source file='{{ cloud_init }}'/>
             <target dev='vdb' bus='virtio'/>
         </disk>
         <console type="pty">

@@ -62,9 +62,17 @@ change passwd:
 ```
 ### create vnet:
 ```
-{'name': request.get('user_name'),
+{
+    'name': request.get('user_name'),
     'type': 'vnet',
     'gateway': request.get('gateway'),
     'seq': 1
+}
+```
+## meta to host
+
+```
+{
+    
 }
 ```

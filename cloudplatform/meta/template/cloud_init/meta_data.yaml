@@ -1,0 +1,13 @@
+#cloud-config
+instance-id: {{ instance_id }}
+local-hostname: {{ instance_id }}
+network-interfaces: |
+  auto eth0
+  iface eth0 inet static
+  onboot yes
+  address {{ private_ip }}
+  network {{ netsegment }}
+  netmask 255.255.255.0
+  broadcast {{ broadcast }}
+  gateway {{ gateway }}
+  dns-nameservers {{ nameserver }}

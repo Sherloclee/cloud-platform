@@ -1,23 +1,58 @@
 # -*- coding: utf-8 -*-
 
 import os
+import sys
 import syslog
-from cloudplatform.meta.meta import Meta
 import getopt
 
-if __name__ == "__main__":
+debug = True
+release = False
+
+from cloudplatform.host import Host
+
+
+def test_meta():
+    from cloudplatform.meta.meta import Meta
+
     try:
         pid = os.fork()
-        if pid == 0:
-            local = Meta()
-            local.run()
-            # cloudplatform.meta.meta.test("tony", "debug5a621", "192.168.127.1", 2, 20, 1, "CentOS", "VM5")
-        else:
+        if pid:
             print "start", pid
             syslog.syslog(syslog.LOG_INFO, "Cloud Platform starting with pid " + str(pid))
             exit(0)
+        else:
+            with open('/dev/null', "r") as read_null, open('/dev/null', 'w') as write_null:
+                os.dup2(read_null.fileno(), sys.stdin.fileno())
+                os.dup2(write_null.fileno(), sys.stdout.fileno())
+                os.dup2(write_null.fileno(), sys.stderr.fileno())
+            local = Meta()
+            local.run()
 
-    except OSError, e:
-
+    except OSError:
         syslog.syslog(syslog.LOG_ERR, OSError.message)
         exit(1)
+
+
+def test_host():
+    from cloudplatform.host.host import Host
+    try:
+        pid = os.fork()
+        if pid:
+            exit(0)
+        else:
+            test = Host(port=23335, broad_port=23334)
+            test.run()
+
+    except OSError:
+        exit(1)
+
+
+def test():
+    host = Host(port=23335, broad_port=23334, debug=debug)
+    host.start()
+    res = raw_input()
+    host.stop()
+
+
+if __name__ == "__main__":
+    test()
