@@ -84,7 +84,7 @@ class Meta(threading.Thread):
         self.hostname = socket.gethostname()  # local host name
         self.host = socket.gethostbyname(self.hostname)  # local ip address
         self.kvm_version = session.getVersion()  # libvirt version
-        self.memory = session.getInfo()[1]  # max memory size
+        self.memory = 1024 * session.getInfo()[1]  # max memory size
         self.maxVcpu = session.getInfo()[3]  # max Cpu core
         self.HDD = 256  # storage size
         self.port = 23333  # local api port
@@ -389,6 +389,7 @@ class Meta(threading.Thread):
                 "method": "regist",
                 "request": {
                     "method": "regist",
+                    "hostname": self.hostname,
                     "ip_address": self.host,
                     "url": self.api,
                     "maxVcpu": self.maxVcpu,

@@ -81,9 +81,9 @@ class Host(threading.Thread):
         header = request_body.get('header')
         request = request_body.get('request')
         if self.debug:
-            print header
-            print request
-            print request_body
+            # print header
+            # print request
+            pass
         result = None
         if header == "instance":
             result = self.instanceController(request)
@@ -97,7 +97,8 @@ class Host(threading.Thread):
             "result": result
         }
         if self.debug:
-            print response
+            # print response
+            pass
         return [json.dumps(response)]
 
     def listener(self):
@@ -218,6 +219,8 @@ class Host(threading.Thread):
         try:
             new_meta = Meta(request)
             self.meta_list.append(new_meta)
+            for item in self.meta_list:
+                print item.hostname, item.memory
             return {"stats": 200}
         except Exception:
             return {"stats": 500}

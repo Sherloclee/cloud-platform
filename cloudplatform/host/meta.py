@@ -8,7 +8,7 @@ class Meta:
         self.storage = info_dict.get("storage")
         self.memory = info_dict.get("memory")
         self.address = info_dict.get("ip_address")
-        self.vcpu = info_dict.get("v")
+        self.vcpu = info_dict.get("vcpu")
         self.stats = True
         self.isAlive = True
 
