@@ -29,49 +29,31 @@ class Meta(threading.Thread):
         super(Meta, self).__init__()
         self.db = None
         self.conn = None
-        self.ipAddr = '127.0.0.1'   # local ip address
-        self.host = None            # remote ip address
+        self.ipAddr = '127.0.0.1'  # local ip address
+        self.host = None  # remote ip address
         self.kvm_version = None
         self.OS = None
-        self.RAM = None
-        self.HDD = None
+        self.memory = None
+        self.storage = None
         self.connector = None
+        self.url = None
+        self.port = None
+        self.instance_list = None
         self.queue = Queue.Queue()
-
+        self.httpd = make_server("0.0.0.0", 23334, self.__resolve)
         mongo_host = "mongodb://" + DATABASE_HOST
         mongo = pymongo.MongoClient(mongo_host)
         self.db = mongo['cloud_platform']
 
-    def __config(self):
-        etc_file = open("/etc/platform.conf", "r")
-        conf = json.load(etc_file)
-        global DATABASE_HOST
-        global ENV
-        global TEMPLATE_PATH
-        global STORAGE_PATH
-        DATABASE_HOST = conf.get("mongodb")
-        ENV = conf.get("platform_root")
-        TEMPLATE_PATH = conf.get("template")
-        STORAGE_PATH = conf.get("storage")
-        host = socket.gethostname()
-        self.ipAddr = socket.gethostbyname(host)
-        pass
-
-    @staticmethod
-    def __check_env():
-        try:
-            libvirt.open("qemu://system")
-        except libvirt.libvirtError:
-            syslog.syslog(syslog.LOG_ERR, "libvirtd is not running, please check libvirtd with command 'systemctl "
-                                          "status libvirtd'")
-            exit(1)
-
     def __connect(self, host, port):
         url = "http://%s:%d" % (host, port)
         data = {
-            "method": "register",
-            "meta_address": self.ipAddr,
-            "meta_port": 23333
+            "method": "regist",
+            "ip_address": self.ipAddr,
+            "url": self.url,
+            "maxVcpu": self.maxVcpu,
+            "memory": self.memory,
+            "instance_list": self.instance_list
         }
         re = requests.post(url, json=data)
         re = re.json()
@@ -85,13 +67,59 @@ class Meta(threading.Thread):
         start_response('200 OK', [('Content-Type', 'application/json')])
         request_body = environ["wsgi.input"].read(int(environ.get("CONTENT_LENGTH", 0)))
         request_body = json.loads(request_body)
+
         self.queue.put(request_body)
+        response = {
+            "result": "processing"
+        }
+        return [json.dumps(response)]
 
     def __get_system_info(self):
         session = libvirt.open("qemu:///system")
-        self.kvm_version = session.getVersion()
-        self.OS = platform.system()
+        self.mongo_host = "mongodb://127.0.0.1:27017"
+        mongo = pymongo.MongoClient(self.mongo_host)
+        self.db = mongo['cloud_platform']                       # mongodb conn
+        self.hostname = socket.gethostname()                    # local host name
+        self.ipAddr = socket.gethostbyname(self.hostname)       # local ip address
+        self.kvm_version = session.getVersion()                 # libvirt version
+        self.memory = session.getInfo()[1]                         # max memory size
+        self.maxVcpu = session.getInfo()[3]                     # max Cpu core
+        self.HDD = 256                                          # storage size
+        self.port = 23333                                       # local api port
+        self.OS = platform.system()                             # OS
+        self.url = "http://%s:%d" % (self.ipAddr, self.port)    # local api port
         pass
+
+    def run(self):
+        self.__get_system_info()                                    # set server information
+        remote_host, remote_port = self.__discoverHost()            # discover host server
+
+        temp = threading.Thread(target=self.httpd.serve_forever)    # create api service
+        temp.start()
+
+        ctrl = threading.Thread(target=self.controller)             # create controller thread
+        ctrl.start()
+
+        for i in range(5):
+            if self.__regist(remote_host, remote_port):            # regist meta to host
+                break
+        print "Meta server start..."
+        print "Meta api %s:%d"
+
+    def testVnet(self, flag, user_name, gateway):
+        if flag:
+            test_request = {
+                "user_name": user_name,
+                # "name": "sherlock-vnet",
+                "gateway": gateway,
+            }
+            self.__createVnet(test_request)
+        else:
+            test_request = {
+                "user_name": user_name,
+                "name": gateway
+            }
+            self.__destroyVnet(test_request)
 
     def controller(self):
         message = json.load(self.queue.get())
@@ -111,7 +139,7 @@ class Meta(threading.Thread):
             pass
         if method == 'GVM':  # get virtual machine info
             self.__getVM(request)
-
+        if method == 'GINFO':
             pass
 
         pass
@@ -263,31 +291,6 @@ class Meta(threading.Thread):
         collection.remove({"name": vnet_name})
         pass
 
-    def run(self):
-        self.__check_env()
-        self.__get_system_info()
-        remote_host, remote_port = self.__discoverHost()
-        for i in range(5):
-            if self.__connect(remote_host, remote_port):
-                break
-        httpd = make_server("0.0.0.0", 23334, self.__resolve)
-        httpd.serve_forever()
-
-    def testVnet(self, flag, user_name, gateway):
-        if flag:
-            test_request = {
-                "user_name": user_name,
-                # "name": "sherlock-vnet",
-                "gateway": gateway,
-            }
-            self.__createVnet(test_request)
-        else:
-            test_request = {
-                "user_name": user_name,
-                "name": gateway
-            }
-            self.__destroyVnet(test_request)
-
     def testVM(self, flag, user_name, passwd, instance_id, vcpu, ram, disk_size, os_type):
         if flag:
             json_dict = {
@@ -362,6 +365,25 @@ class Meta(threading.Thread):
         print command
         os.system(command)
         return img
+
+    def __regist(self, remote_host, remote_port):
+        url = "http://%s:%d" % (remote_host, remote_port)
+        data = {
+            "method": "regist",
+            "ip_address": self.ipAddr,
+            "url": self.url,
+            "maxVcpu": self.maxVcpu,
+            "memory": self.memory,
+            "storage": self.storage,
+        }
+        re = requests.post(url, json=data)
+        re = re.json()
+        stats = re.get("stats")
+        if stats == 200:
+            return 1
+        else:
+            return 0
+        pass
 
 
 class Connector(threading.Thread):
