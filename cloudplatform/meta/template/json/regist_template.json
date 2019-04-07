@@ -1,0 +1,13 @@
+{
+  "header": "instance",
+  "request": {
+    "method": "register",
+    "request": {
+      "hostname": "{{ hostname }}",
+      "url": "{{ url }}",
+      "storage": {{ storage }},
+      "memory": {{ memory }},
+      "ip_address": "{{ ip_address }}"
+    }
+  }
+}

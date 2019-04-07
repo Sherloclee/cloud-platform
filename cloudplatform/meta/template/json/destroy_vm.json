@@ -1,0 +1,13 @@
+{
+    "header": "web",
+    "request": {
+        "method": "instance",
+        "request": {
+            "method": "DVM",
+            "request": {
+                "user_name": "{{ user_name }}",
+                "instance_id": "{{ instance_id }}"
+            }
+        }
+    }
+}

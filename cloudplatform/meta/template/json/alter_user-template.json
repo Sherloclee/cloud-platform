@@ -1,0 +1,11 @@
+{
+    "header": "web",
+    "request": {
+        "method": "account",
+        "request": {
+            "method": "alter",
+            "user_name": "{{ user_name }}",
+            "passwd": "{{ passwd }}"
+        }
+    }
+}
