@@ -4,7 +4,6 @@ import platform
 import os
 import libvirt
 import struct
-import syslog
 import threading
 import Queue
 import pymongo
@@ -29,31 +28,29 @@ class Meta(threading.Thread):
         super(Meta, self).__init__()
         self.db = None
         self.conn = None
-        self.ipAddr = '127.0.0.1'  # local ip address
-        self.host = None  # remote ip address
-        self.kvm_version = None
-        self.OS = None
-        self.memory = None
-        self.storage = None
-        self.connector = None
-        self.url = None
-        self.port = None
-        self.instance_list = None
-        self.queue = Queue.Queue()
+        self.host = '127.0.0.1'             # local ip address
+        self.port = None                    # local port
+        self.remote_host = None             # remote ip addr
+        self.remote_port = None             # remote port
+        self.kvm_version = None             # libvirt version
+        self.OS = None                      # os
+        self.memory = None                  # max ram size
+        self.storage = None                 # max storage size
+        self.api = None                     # api url
+        self.queue = Queue.Queue()          # message queue
         self.httpd = make_server("0.0.0.0", 23334, self.__resolve)
         mongo_host = "mongodb://" + DATABASE_HOST
         mongo = pymongo.MongoClient(mongo_host)
-        self.db = mongo['cloud_platform']
+        self.db = mongo['cloud_platform']   # mongodb
 
     def __connect(self, host, port):
         url = "http://%s:%d" % (host, port)
         data = {
             "method": "regist",
-            "ip_address": self.ipAddr,
-            "url": self.url,
+            "ip_address": self.host,
+            "url": self.api,
             "maxVcpu": self.maxVcpu,
             "memory": self.memory,
-            "instance_list": self.instance_list
         }
         re = requests.post(url, json=data)
         re = re.json()
@@ -80,14 +77,14 @@ class Meta(threading.Thread):
         mongo = pymongo.MongoClient(self.mongo_host)
         self.db = mongo['cloud_platform']                       # mongodb conn
         self.hostname = socket.gethostname()                    # local host name
-        self.ipAddr = socket.gethostbyname(self.hostname)       # local ip address
+        self.host = socket.gethostbyname(self.hostname)       # local ip address
         self.kvm_version = session.getVersion()                 # libvirt version
         self.memory = session.getInfo()[1]                         # max memory size
         self.maxVcpu = session.getInfo()[3]                     # max Cpu core
         self.HDD = 256                                          # storage size
         self.port = 23333                                       # local api port
         self.OS = platform.system()                             # OS
-        self.url = "http://%s:%d" % (self.ipAddr, self.port)    # local api port
+        self.api = "http://%s:%d" % (self.host, self.port)    # local api port
         pass
 
     def run(self):
@@ -139,7 +136,8 @@ class Meta(threading.Thread):
             pass
         if method == 'GVM':  # get virtual machine info
             self.__getVM(request)
-        if method == 'GINFO':
+        if method == 'getHost':
+
             pass
 
         pass
@@ -370,8 +368,8 @@ class Meta(threading.Thread):
         url = "http://%s:%d" % (remote_host, remote_port)
         data = {
             "method": "regist",
-            "ip_address": self.ipAddr,
-            "url": self.url,
+            "ip_address": self.host,
+            "url": self.api,
             "maxVcpu": self.maxVcpu,
             "memory": self.memory,
             "storage": self.storage,
