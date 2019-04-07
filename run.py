@@ -50,8 +50,6 @@ def test_host():
 def test():
     host = Host(port=23335, broad_port=23334, debug=debug)
     host.start()
-    res = raw_input()
-    host.stop()
 
 
 if __name__ == "__main__":

@@ -56,6 +56,7 @@ class Host(threading.Thread):
     def stop(self):
         self.flag = False
         self.destroy_host_broadCast()
+        time.sleep(5)
         self.httpd.shutdown()
 
     def __resolve(self):
@@ -79,19 +80,25 @@ class Host(threading.Thread):
 
         header = request_body.get('header')
         request = request_body.get('request')
-
+        if self.debug:
+            print header
+            print request
+            print request_body
         result = None
         if header == "instance":
             result = self.instanceController(request)
         if header == "web":
             result = self.webController(request)
+        if header == "cli":
+            result = self.command(request)
 
         response = {
             "request": request_body,
             "result": result
         }
-
-        return response
+        if self.debug:
+            print response
+        return [json.dumps(response)]
 
     def listener(self):
         pass
@@ -110,13 +117,13 @@ class Host(threading.Thread):
         self.broadcast.set_flag(False)
 
     def webController(self, request):
-        request_type = request.get("type")
+        method = request.get("method")
         sub_request = request.get("request")
         result = None
-        if request_type == "account":  # account setting
+        if method == "account":  # account setting
             result = self.account(sub_request)
 
-        if request_type == "instance":  # instance action
+        if method == "instance":  # instance action
             result = self.instance(sub_request)
 
         response = {
@@ -214,6 +221,22 @@ class Host(threading.Thread):
             return {"register": "success"}
         except Exception:
             return {"register": "failed"}
+
+    def command(self, result):
+        print result
+        command = result.get("command")
+        result = None
+        print command
+        if command == "stop":
+            result = "server stop"
+            temp = threading.Thread(target=self.stop)
+            temp.start()
+
+        response = {
+            "command": "success",
+            "result": result
+        }
+        return response
 
 
 def local_test():
