@@ -223,7 +223,7 @@ def local_test():
     sk = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sk.bind(('', 23333))
     # create test broadcast
-    host.create_host_broadCast()
+    host.create_host_broadCast(broad_port=23334)
     # test recv data from broadcast
     recv_data, address = sk.recvfrom(1024)
     print address
@@ -239,7 +239,7 @@ def local_test():
 def remote_test():
     host = Host(23334, 23335)
     host.get_host()
-    host.create_host_broadCast()
+    host.create_host_broadCast(broad_port=23334)
     raw_input()
     host.destroy_host_broadCast()
 
