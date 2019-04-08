@@ -6,12 +6,9 @@ import syslog
 import getopt
 
 from cloudplatform.install import install
-from cloudplatform.meta import Meta
 
 debug = True
 release = False
-
-from cloudplatform.host import Host
 
 
 def test_meta():
