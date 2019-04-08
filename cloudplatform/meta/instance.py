@@ -2,7 +2,7 @@ import libvirt
 import os
 import jinja2
 
-ENV = os.environ.get("PLATFORM_ROOT")
+ENV = os.getenv("PLATFORM_ROOT")
 TEMPLATE_PATH = str(ENV) + "template/"
 STORAGE_PATH = str(ENV) + "storage/"
 
