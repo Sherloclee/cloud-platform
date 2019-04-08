@@ -64,10 +64,12 @@ def test2():
 
 
 if __name__ == "__main__":
-    arg = sys.argv[1]
+    # arg = sys.argv[1]
+    arg = "install"
     if arg == "host":
         test1()
     if arg == "meta":
         test2()
     if arg == "install":
+        print os.getcwd()
         install()
