@@ -13,12 +13,12 @@ def test_createUser():
     jinja_env = jinja2.Environment(loader=jinja2.FileSystemLoader(TEMPLATE_PATH + './json/'))
     template = jinja_env.get_template("create_user-template.json")
     content = template.render(
-        user_name="sherlock",
+        user_name="tony",
         passwd="debug5a621"
     )
     data = json.loads(content)
     print data
-    re = requests.post("http://127.0.0.1:23335", json=data)
+    re = requests.post("http://10.66.106.130:23335", json=data)
     print re.json()
 
 
@@ -26,7 +26,7 @@ def test_createVM():
     jinja_env = jinja2.Environment(loader=jinja2.FileSystemLoader(TEMPLATE_PATH + './json/'))
     template = jinja_env.get_template("create_vm-template.json")
     content = template.render(
-        user_name="sherlock",
+        user_name="tony",
         instance_id="VM1",
         passwd="debug5a621",
         OSType="CentOS",
@@ -36,23 +36,23 @@ def test_createVM():
     )
     print content
     data = json.loads(content)
-    re = requests.post("http://127.0.0.1:23335", json=data)
+    re = requests.post("http://10.66.106.130:23335", json=data)
 
 
 def test_destroyVM():
     jinja_env = jinja2.Environment(loader=jinja2.FileSystemLoader(TEMPLATE_PATH + './json/'))
     template = jinja_env.get_template("destroy_vm-template.json")
     content = template.render(
-        user_name="sherlock",
+        user_name="tony",
         instance_id="VM1"
     )
     print content
     data = json.loads(content)
-    re = requests.post("http://127.0.0.1:23335", json=data)
+    re = requests.post("http://10.66.106.130:23335", json=data)
 
 
 if __name__ == '__main__':
-    # test_destroyVM()
+    test_destroyVM()
     # test_createVM()
     # test_createUser()
     pass

@@ -1,0 +1,2 @@
+iptables -t nat -A PREROUTING -s {{ public_ip }} -j DNAT --to-destination {{ private_ip }}
+iptables -t nat -A POSTROUTING -d {{ private_ip }} -j SNAT --to {{ public_ip }}

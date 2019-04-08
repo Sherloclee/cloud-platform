@@ -31,20 +31,31 @@ def install():
         # os.mkdir(template)
         shutil.copytree("./template", platform_root+"template/", True)
 
+    conn = pymongo.MongoClient(mongo)
+    db = conn["cloud_platform"]
     try:
-        conn = pymongo.MongoClient(mongo)
-        db = conn["cloud_platforms"]
         db.create_collection("system_info")
-        db.create_collection("route")
-        col = db["system_info"]
-        db_info = {
-            "type": "gateway_info",
-            "gateway_start": gateway_start,
-            "current": 0,
-        }
-        col.insert(db_info)
     except Exception:
         print Exception.message
+    try:
+        db.create_collection("route")
+    except Exception:
+        print Exception.message
+
+    col = db["system_info"]
+    gateway_info = {
+        "type": "gateway_info",
+        "gateway_start": gateway_start,
+        "current": 0,
+    }
+    col.insert(gateway_info)
+    ip_info = {
+        "type": "ip_info",
+        "ip_start": "10.66.106.21",
+        "current": 0
+    }
+    col.insert(ip_info)
+
     conf_info = {
         "PLATFORM_ROOT": platform_root,
         "STORAGE_PATH": storage,

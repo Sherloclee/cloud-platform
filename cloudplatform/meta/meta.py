@@ -103,6 +103,9 @@ class Meta(threading.Thread):
         return data
 
     def run(self):
+        print ENV
+        print TEMPLATE_PATH
+        print STORAGE_PATH
         self.__get_system_info()  # set server information
         remote_host, remote_port = self.__discoverHost()  # discover host server
 
@@ -205,6 +208,12 @@ class Meta(threading.Thread):
         net_segment = utils.itoh(gateway_int - 1)
         broadcast = utils.itoh(gateway_int + 254)
 
+        col = self.db["system_info"]
+        ip_info = col.find_one({"type": "ip_info"})
+        ip_start = ip_info.get("ip_start")
+        ip_current = ip_info.get("current") + 1
+        public_ip = utils.itoh(utils.htoi(ip_start) + ip_current)
+
         cloud_init_dict = {
             "instance_id": instance_id,
             "passwd": passwd,
@@ -226,6 +235,7 @@ class Meta(threading.Thread):
             "img": img,
             "memory": memory,
             "private_ip": private_ip,
+            "public_ip": public_ip,
             "cloud_init": cloud_init,
             "gateway": gateway
         }
@@ -248,10 +258,27 @@ class Meta(threading.Thread):
             "os": linux
         }
         print user_name
+
         query = {"name": user_name, "type": "vnet"}
         new_value = {"$set": {"seq": seq + 1}}
+        col = self.db[user_name]
         col.insert(mongo_dict)
         col.update(query, new_value)
+
+        col = self.db["system_info"]
+        col.update({"type": "ip_info"}, {"$set", {"current": ip_current}})
+
+        col = self.db["route"]
+        route = {
+            "public": public_ip,
+            "private": private_ip,
+            "instance_id": instance_id
+        }
+        col.insert(route)
+        command1 = "iptables -t nat -A PREROUTING -s %s -j DNAT --to-destination %s" % (public_ip, private_ip)
+        command2 = "iptables -t nat -A POSTROUTING -d %s -j SNAT --to %s" % (private_ip, public_ip)
+        os.system(command1)
+        os.system(command2)
         pass
 
     def __destroyVM(self, request):
