@@ -64,8 +64,7 @@ def test2():
 
 
 if __name__ == "__main__":
-    # arg = sys.argv[1]
-    arg = "install"
+    arg = sys.argv[1]
     if arg == "host":
         test1()
     if arg == "meta":
