@@ -48,6 +48,7 @@ def test_host():
 
 
 def test1():
+    from cloudplatform.host import Host
     host = Host(port=23335, broad_port=23334, debug=debug)
     host.start()
     raw_input()
@@ -55,6 +56,7 @@ def test1():
 
 
 def test2():
+    from cloudplatform.meta.meta import Meta
     meta = Meta()
     meta.run()
     raw_input()
