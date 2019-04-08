@@ -52,7 +52,7 @@ def test_destroyVM():
 
 
 if __name__ == '__main__':
-    test_destroyVM()
-    # test_createVM()
     # test_createUser()
+    test_createVM()
+    # test_destroyVM()
     pass

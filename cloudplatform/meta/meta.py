@@ -266,7 +266,7 @@ class Meta(threading.Thread):
         col.update(query, new_value)
 
         col = self.db["system_info"]
-        col.update({"type": "ip_info"}, {"$set", {"current": ip_current}})
+        col.update({"type": "ip_info"}, {"$set": {"current": ip_current}})
 
         col = self.db["route"]
         route = {
