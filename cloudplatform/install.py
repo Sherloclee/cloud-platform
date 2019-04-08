@@ -9,17 +9,21 @@ def install():
     etc = "/etc/platform.conf"
     platform_root = "/kvm/"
     storage = "/kvm/storage/"
-    template = "/kvm/storage/"
-    os.mkdir(platform_root)
-    os.mkdir(storage)
-    os.mkdir(template)
+    template = "/kvm/template/"
+    if not os.path.exists(platform_root):
+        os.mkdir(platform_root)
+    if not os.path.exists(storage):
+        os.mkdir(storage)
+    if not os.path.exists(template):
+        os.mkdir(template)
 
     conn = pymongo.MongoClient(mongo)
-    db = conn["cloud_platform"]
+    db = conn["cloud_platforms"]
     db.create_collection("system_info")
     db.create_collection("route")
     col = db["system_info"]
     db_info = {
+        "type": "gateway_info",
         "gateway_start": gateway_start,
         "current": 0,
     }
@@ -32,4 +36,5 @@ def install():
     }
 
     etc_file = open(etc, "w")
-    etc_file.write(json.dump(etc_file, conf_info))
+    etc_file.write(json.dumps(conf_info))
+    etc_file.close()

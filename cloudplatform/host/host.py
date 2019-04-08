@@ -8,6 +8,9 @@ import time
 import pymongo
 
 from wsgiref.simple_server import make_server
+
+import requests
+
 from broadcast import BroadCast
 from cloudplatform import utils
 from cloudplatform.host.meta import Meta
@@ -56,7 +59,7 @@ class Host(threading.Thread):
     def stop(self):
         self.flag = False
         self.destroy_host_broadCast()
-        time.sleep(5)
+        time.sleep(2)
         self.httpd.shutdown()
 
     def __resolve(self):
@@ -97,7 +100,7 @@ class Host(threading.Thread):
             "result": result
         }
         if self.debug:
-            # print response
+            print result
             pass
         return [json.dumps(response)]
 
@@ -144,7 +147,7 @@ class Host(threading.Thread):
         if method == "create":
             node = None
             for node in self.meta_list:
-                if node.memory > (1024 * 1024):
+                if node.memory > (1024 * 1024):  # MiB
                     break
 
             node_name = node.hostname
@@ -154,6 +157,16 @@ class Host(threading.Thread):
                 "node": node_name
             }
             col.insert(data)
+
+            meta_data = {
+                "method": "CVN",
+                "request": {
+                    "user_name": user_name,
+                    "passwd": passwd
+                }
+            }
+            re = requests.post(node.url, json=meta_data)
+            print node.url
 
             response = {
                 "account": "success",
@@ -173,9 +186,12 @@ class Host(threading.Thread):
 
     # webController
     def instance(self, request):
+        print request
         user_name = request.get("user_name")
         col = self.db["users"]
         user = col.find_one({"user_name": user_name})
+        print user_name
+        print user
         node_name = user.get("node_name")  # find node_name by user_name
 
         node = None

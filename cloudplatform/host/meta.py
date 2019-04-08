@@ -15,9 +15,10 @@ class Meta:
     def request(self, request):
         try:
             re = post(self.url, json=request)
+            result = re.json()
             info = {
                 "meta_request": "success",
-                "result": re
+                "result": result
             }
             return info
         except IOError:

@@ -39,8 +39,8 @@ class Meta(threading.Thread):
         self.storage = 256  # max storage size
         self.api = None  # api url
         self.queue = Queue.Queue()  # message queue
-        self.ctrl = self.ctrl = threading.Thread(target=self.controller)  # controller thread
-        self.httpd = make_server("0.0.0.0", 23334, self.__resolve)
+        self.ctrl = Controller(target=self.controller)  # controller thread
+        self.httpd = None
         mongo_host = "mongodb://" + DATABASE_HOST
         mongo = pymongo.MongoClient(mongo_host)
         self.db = mongo['cloud_platform']  # mongodb
@@ -62,18 +62,20 @@ class Meta(threading.Thread):
         else:
             return 0
 
-    def __resolve(self, environ, start_response):
+    def resolve(self, environ, start_response):
         start_response('200 OK', [('Content-Type', 'application/json')])
         request_body = environ["wsgi.input"].read(int(environ.get("CONTENT_LENGTH", 0)))
         request_body = json.loads(request_body)
+        print request_body
         if request_body.get("method") == "getInfo":
             response = self.__getInfo()
         else:
             self.queue.put(request_body)
+            print request_body
             response = {
                 "result": "processing"
             }
-            self.ctrl.start()
+        self.ctrl.resume()
         return [json.dumps(response)]
 
     def __get_system_info(self):
@@ -104,21 +106,27 @@ class Meta(threading.Thread):
         self.__get_system_info()  # set server information
         remote_host, remote_port = self.__discoverHost()  # discover host server
 
+        self.httpd = make_server(self.host, self.port, self.resolve)
         temp = threading.Thread(target=self.httpd.serve_forever)  # create api service
         temp.start()
 
+        self.ctrl.start()
+        self.ctrl.pause()
         # create controller thread
 
         for i in range(5):
             sleep(2)
             if self.__regist(remote_host, remote_port):  # regist meta to host
                 break
+
         print "Meta server start..."
         print "Meta api %s:%d" % (self.host, self.port)
 
     def stop(self):
         self.flag = False
         self.httpd.shutdown()
+        self.ctrl.resume()
+        self.stop()
 
     def testVnet(self, flag, user_name, gateway):
         if flag:
@@ -137,6 +145,7 @@ class Meta(threading.Thread):
 
     def controller(self):
         while not self.queue.empty():
+            print "get request"
             message = self.queue.get()
             method = message.get('method')
             request = message.get('request')
@@ -147,7 +156,7 @@ class Meta(threading.Thread):
                 self.__createVnet(request)
                 pass
             if method == 'DVM':  # destroy virtual machine
-                self.__destroyVnet(request)
+                self.__destroyVM(request)
                 pass
             if method == 'AVM':  # alter virtual machine
                 self.__alterVM(request)
@@ -156,7 +165,7 @@ class Meta(threading.Thread):
                 self.__getVM(request)
             if method == 'getHost':
                 pass
-
+        self.ctrl.pause()
         pass
 
     def __discoverHost(self):
@@ -178,7 +187,7 @@ class Meta(threading.Thread):
     def __createVM(self, request):
         user_name = request.get("user_name")
         instance_id = "%s-%s" % (user_name, request.get("instance_id"))
-        memory = request.get("memory")
+        memory = request.get("memory")  # MiB
         disk_size = request.get("disk_size")
         linux = request.get("OSType")
         passwd = request.get("passwd")
@@ -187,7 +196,7 @@ class Meta(threading.Thread):
 
         # get vm sequence
         col = self.db[user_name]
-        vnet = col.find({"name": user_name, "type": "vnet"})[0]
+        vnet = col.find_one({"name": user_name, "type": "vnet"})
         gateway = vnet.get('gateway')
         gateway_int = utils.htoi(gateway)
         seq = vnet.get('seq')
@@ -213,6 +222,7 @@ class Meta(threading.Thread):
             "instance_id": instance_id,
             "network": network,
             "vcpu": vcpu,
+            "os": linux,
             "img": img,
             "memory": memory,
             "private_ip": private_ip,
@@ -248,8 +258,9 @@ class Meta(threading.Thread):
         instance_id = request.get('instance_id')
         user_name = request.get('user_name')
         instance_id = "%s-%s" % (user_name, instance_id)
+        print "destroying %s" % instance_id
         col = self.db[user_name]
-        json_dict = col.find({'instance_id': instance_id})[0]
+        json_dict = col.find_one({'instance_id': instance_id})
         instance = Instance()
         instance.loadFromJson(json_dict)
         instance.destroy()
@@ -274,10 +285,19 @@ class Meta(threading.Thread):
             }
         """
         user_name = request.get('user_name')
+
+        col = self.db["system_info"]
+        gateway_info = col.find_one({"type": "gateway_info"})
+        current = gateway_info.get("current")
+        gateway_seq = current + 1
+        col.update({"type": "gateway_info"}, {"$set": {"current": current + 1}})
+        col.insert({"type": "record", "user_name": user_name, "gateway_seq": gateway_seq})
+
+        gateway = "192.168.%d.1" % gateway_seq
         json_dict = {'name': request.get('user_name'),
                      'type': 'vnet',
                      # 'netmask': '255.255.255.0',
-                     'gateway': request.get('gateway'),
+                     'gateway': gateway,
                      'seq': 1
                      # 'mac': request.get('mac')
                      }
@@ -403,12 +423,40 @@ class Meta(threading.Thread):
         result = re.get("result")
         result = result.get("result")
         stats = result.get("stats")
-        print re
         if stats == 200:
             return 1
         else:
             return 0
         pass
+
+
+class Controller(threading.Thread):
+
+    def __init__(self, target=None):
+        super(Controller, self).__init__()
+        self.__flag = threading.Event()
+        self.__running = threading.Event()
+        self.__flag.clear()
+        self.__running = True
+        self.__target = target
+
+    def pause(self):
+        self.__flag.clear()
+
+    def resume(self):
+        self.__flag.set()
+
+    def stop(self):
+        self.__running = False
+
+    def run(self):
+        try:
+            if self.__target:
+                while self.__running:
+                    self.__target()
+                    self.__flag.wait()
+        except OSError:
+            print OSError.message
 
 
 class Connector(threading.Thread):

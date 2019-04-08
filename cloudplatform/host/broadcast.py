@@ -18,8 +18,11 @@ class BroadCast(threading.Thread):
         syslog.syslog(syslog.LOG_INFO, "Socket created")
         syslog.syslog(syslog.LOG_INFO, "Broadcast started at %d" % self.port)
         while self.flag:
-            self.conn.sendto(self.message, ("<broadcast>", self.port))
-            sleep(5)
+            try:
+                self.conn.sendto(self.message, ("<broadcast>", self.port))
+            except IOError:
+                print IOError.message
+            sleep(2)
         self.conn.close()
 
     def set_flag(self, flag):

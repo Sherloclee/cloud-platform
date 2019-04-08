@@ -5,6 +5,9 @@ import sys
 import syslog
 import getopt
 
+from cloudplatform.install import install
+from cloudplatform.meta import Meta
+
 debug = True
 release = False
 
@@ -47,11 +50,25 @@ def test_host():
         exit(1)
 
 
-def test():
+def test1():
     host = Host(port=23335, broad_port=23334, debug=debug)
     host.start()
+    raw_input()
+    host.stop()
+
+
+def test2():
+    meta = Meta()
+    meta.run()
+    raw_input()
+    meta.stop()
 
 
 if __name__ == "__main__":
-
-    test()
+    arg = sys.argv[1]
+    if arg == "host":
+        test1()
+    if arg == "meta":
+        test2()
+    if arg == "install":
+        install()
