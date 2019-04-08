@@ -33,11 +33,12 @@ class Host(threading.Thread):
         self.meta_list = list()
         self.lock = threading.Lock()
         self.httpd_thread = None
-        self.httpd = make_server(self.host, self.port, self.controller)
+        self.httpd = None
         self.flag = True
 
     def run(self):
         self.get_host()
+        self.httpd = make_server(self.host, self.port, self.controller)
         if self.debug:
             print "get host result:"
             print "hostname=%s" % self.host
@@ -87,7 +88,7 @@ class Host(threading.Thread):
             # print header
             # print request
             pass
-        result = None
+        result = "NULL"
         if header == "instance":
             result = self.instanceController(request)
         if header == "web":
