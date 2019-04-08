@@ -1,0 +1,19 @@
+{
+    "header": "web",
+    "request": {
+        "method": "instance",
+        "request": {
+            "user_name": "{{ user_name }}",
+            "method": "CVM",
+            "request": {
+                "user_name": "{{ user_name }}",
+                "instance_id": "{{ instance_id }}",
+                "passwd": "{{ passwd }}",
+                "OSType": "{{ OSType }}",
+                "vcpu": {{ vcpu }},
+                "memory": {{ memory }},
+                "disk_size": {{ disk_size }}
+            }
+        }
+    }
+}

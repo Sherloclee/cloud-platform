@@ -1,6 +1,6 @@
 <domain type='kvm'>
     <name>{{ instance_id }}</name>
-    <memory unit='GiB'>{{ memory }}</memory>
+    <memory unit='MiB'>{{ memory }}</memory>
     <os>
         <type>hvm</type>
         <boot dev="hd" />

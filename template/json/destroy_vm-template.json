@@ -4,6 +4,7 @@
         "method": "instance",
         "request": {
             "method": "DVM",
+            "user_name": "{{ user_name }}",
             "request": {
                 "user_name": "{{ user_name }}",
                 "instance_id": "{{ instance_id }}"
